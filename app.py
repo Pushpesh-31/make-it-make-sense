@@ -39,38 +39,32 @@ EXAMPLES = [
     {
         "label": "Saudi Aramco Revenue",
         "phenomenon": "Annual revenue of Saudi Aramco",
-        "number": "535,000,000,000",
-        "unit": "USD",
+        "value": "535,000,000,000 USD",
     },
     {
         "label": "Daily Oil Production",
         "phenomenon": "Daily oil production worldwide",
-        "number": "100,000,000",
-        "unit": "barrels",
+        "value": "100,000,000 barrels",
     },
     {
         "label": "Lightning Strike Odds",
         "phenomenon": "Chance of being struck by lightning in a year",
-        "number": "0.0000008",
-        "unit": "probability",
+        "value": "0.0000008 probability",
     },
     {
         "label": "Deepwater Horizon Spill",
         "phenomenon": "Volume of the Deepwater Horizon oil spill",
-        "number": "210,000,000",
-        "unit": "gallons",
+        "value": "210,000,000 gallons",
     },
     {
         "label": "India's Population",
         "phenomenon": "India's population",
-        "number": "1,440,000,000",
-        "unit": "people",
+        "value": "1,440,000,000 people",
     },
     {
         "label": "Distance to Mars",
         "phenomenon": "Distance to Mars at closest approach",
-        "number": "55,000,000",
-        "unit": "kilometers",
+        "value": "55,000,000 kilometers",
     },
 ]
 
@@ -387,8 +381,8 @@ def inject_css():
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* Button overrides */
-    .stButton > button {
+    /* CTA button */
+    .cta-wrapper .stButton > button {
         width: 100%;
         border-radius: 12px;
         font-weight: 700;
@@ -399,13 +393,35 @@ def inject_css():
         border: none;
         transition: all 0.2s;
     }
-    .stButton > button:hover {
+    .cta-wrapper .stButton > button:hover {
         background: linear-gradient(135deg, #5ED8CF 0%, #4ECDC4 100%);
         transform: translateY(-1px);
         box-shadow: 0 4px 20px rgba(78,205,196,0.3);
     }
-    .stButton > button:active {
+    .cta-wrapper .stButton > button:active {
         transform: translateY(0);
+    }
+
+    /* Example chip buttons */
+    .example-chips .stButton > button {
+        border-radius: 999px;
+        font-weight: 500;
+        font-size: 0.82rem;
+        padding: 0.35rem 0.9rem;
+        background: rgba(255,255,255,0.05);
+        color: #ccc;
+        border: 1px solid rgba(255,255,255,0.12);
+        transition: all 0.2s;
+    }
+    .example-chips .stButton > button:hover {
+        background: rgba(78,205,196,0.15);
+        border-color: #4ECDC4;
+        color: #4ECDC4;
+        transform: none;
+        box-shadow: none;
+    }
+    .example-chips .stButton > button:active {
+        transform: none;
     }
 
     /* Selectbox styling */
@@ -425,13 +441,12 @@ def inject_css():
 # ---------------------------------------------------------------------------
 # API call
 # ---------------------------------------------------------------------------
-def generate_comparisons(phenomenon: str, value: str, unit: str, mode: str, region: str) -> list[dict]:
+def generate_comparisons(phenomenon: str, value: str, mode: str, region: str) -> list[dict]:
     """Call Claude to generate 4 perspective comparisons."""
     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
     user_prompt = f"""Phenomenon: "{phenomenon}"
-Number: {value}
-Unit: {unit}
+Value: {value}
 Mode: {mode}
 Region: {region}
 
@@ -480,9 +495,8 @@ def render_example_chips():
         col = cols[idx % 3]
         with col:
             if st.button(ex["label"], key=f"ex_{idx}", use_container_width=True):
-                st.session_state["phenomenon"] = ex["phenomenon"]
-                st.session_state["number"] = ex["number"]
-                st.session_state["unit"] = ex["unit"]
+                st.session_state["input_phenomenon"] = ex["phenomenon"]
+                st.session_state["input_value"] = ex["value"]
                 st.rerun()
 
 
@@ -505,12 +519,12 @@ def render_result_card(comparison: dict):
     )
 
 
-def render_reference_bar(phenomenon: str, value: str, unit: str):
+def render_reference_bar(phenomenon: str, value: str):
     st.markdown(
         f"""
         <div class="ref-bar">
             <span class="ref-label">Original</span>
-            <span>{phenomenon} &mdash; <strong>{value}</strong> {unit}</span>
+            <span>{phenomenon} &mdash; <strong>{value}</strong></span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -531,39 +545,18 @@ def main():
     inject_css()
     render_header()
 
-    # Initialise session state defaults
-    for key, default in [("phenomenon", ""), ("number", ""), ("unit", "")]:
-        if key not in st.session_state:
-            st.session_state[key] = default
-
-    # Example chips
-    st.markdown("##### Try an example")
-    render_example_chips()
-    st.markdown("")
-
     # Input fields
     phenomenon = st.text_input(
         "What's the phenomenon?",
-        value=st.session_state.get("phenomenon", ""),
         placeholder="e.g. Annual revenue of Saudi Aramco",
         key="input_phenomenon",
     )
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        number = st.text_input(
-            "The number",
-            value=st.session_state.get("number", ""),
-            placeholder="e.g. 535,000,000,000",
-            key="input_number",
-        )
-    with col2:
-        unit = st.text_input(
-            "Unit",
-            value=st.session_state.get("unit", ""),
-            placeholder="e.g. USD",
-            key="input_unit",
-        )
+    value = st.text_input(
+        "The number",
+        placeholder="e.g. 535,000,000,000 USD or 77% of revenue",
+        key="input_value",
+    )
 
     # Mode & Region
     col_mode, col_region = st.columns(2)
@@ -583,11 +576,21 @@ def main():
             index=default_idx,
         )
 
+    # Example chips (below inputs)
+    st.markdown("##### Try an example")
+    st.markdown('<div class="example-chips">', unsafe_allow_html=True)
+    render_example_chips()
+    st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown("")
 
-    # Generate button
-    if st.button("Make It Make Sense ✨"):
-        if not phenomenon.strip() or not number.strip():
+    # Generate button (wrapped for scoped CSS)
+    st.markdown('<div class="cta-wrapper">', unsafe_allow_html=True)
+    cta_clicked = st.button("Make It Make Sense ✨")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if cta_clicked:
+        if not phenomenon.strip() or not value.strip():
             st.warning("Please enter a phenomenon and a number.")
             return
 
@@ -598,16 +601,14 @@ def main():
             try:
                 comparisons = generate_comparisons(
                     phenomenon.strip(),
-                    number.strip(),
-                    unit.strip(),
+                    value.strip(),
                     mode_label,
                     region_label,
                 )
                 st.session_state["results"] = comparisons
                 st.session_state["result_meta"] = {
                     "phenomenon": phenomenon.strip(),
-                    "number": number.strip(),
-                    "unit": unit.strip(),
+                    "value": value.strip(),
                 }
             except Exception as e:
                 st.error(f"Something went wrong: {e}")
@@ -623,7 +624,7 @@ def main():
 
         meta = st.session_state.get("result_meta", {})
         if meta:
-            render_reference_bar(meta["phenomenon"], meta["number"], meta["unit"])
+            render_reference_bar(meta["phenomenon"], meta["value"])
 
     render_footer()
 
