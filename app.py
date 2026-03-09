@@ -35,38 +35,6 @@ REGIONS = {
     "🌍 Global": "Global",
 }
 
-EXAMPLES = [
-    {
-        "label": "Saudi Aramco Revenue",
-        "phenomenon": "Annual revenue of Saudi Aramco",
-        "value": "535,000,000,000 USD",
-    },
-    {
-        "label": "Daily Oil Production",
-        "phenomenon": "Daily oil production worldwide",
-        "value": "100,000,000 barrels",
-    },
-    {
-        "label": "Lightning Strike Odds",
-        "phenomenon": "Chance of being struck by lightning in a year",
-        "value": "0.0000008 probability",
-    },
-    {
-        "label": "Deepwater Horizon Spill",
-        "phenomenon": "Volume of the Deepwater Horizon oil spill",
-        "value": "210,000,000 gallons",
-    },
-    {
-        "label": "India's Population",
-        "phenomenon": "India's population",
-        "value": "1,440,000,000 people",
-    },
-    {
-        "label": "Distance to Mars",
-        "phenomenon": "Distance to Mars at closest approach",
-        "value": "55,000,000 kilometers",
-    },
-]
 
 # ---------------------------------------------------------------------------
 # System prompt (research-backed)
@@ -185,6 +153,7 @@ Population: World (8 billion), China (1.4B), US (335M), UK (67M)
 8. The comparison must be ACCURATE — do the math correctly
 9. Never start two comparisons the same way
 10. Prefer concrete nouns over abstract concepts
+11. NEVER use generic filler analogies like pizza slices, pie slicing, or other clichéd proportional metaphors. Every comparison must be specifically tailored to the phenomenon — not a one-size-fits-all visual.
 
 ## EXAMPLE OUTPUT (for "India's population, 1,440,000,000 people, Fun mode, India region")
 
@@ -271,29 +240,6 @@ def inject_css():
         margin-bottom: 1.5rem;
     }
 
-    /* Example chips */
-    .chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1.25rem;
-    }
-    .chip {
-        display: inline-block;
-        padding: 0.35rem 0.9rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.05);
-        color: #ccc;
-        font-size: 0.82rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .chip:hover {
-        background: rgba(78,205,196,0.15);
-        border-color: #4ECDC4;
-        color: #4ECDC4;
-    }
 
     /* Mode buttons */
     .mode-btn {
@@ -402,27 +348,6 @@ def inject_css():
         transform: translateY(0);
     }
 
-    /* Example chip buttons */
-    .example-chips .stButton > button {
-        border-radius: 999px;
-        font-weight: 500;
-        font-size: 0.82rem;
-        padding: 0.35rem 0.9rem;
-        background: rgba(255,255,255,0.05);
-        color: #ccc;
-        border: 1px solid rgba(255,255,255,0.12);
-        transition: all 0.2s;
-    }
-    .example-chips .stButton > button:hover {
-        background: rgba(78,205,196,0.15);
-        border-color: #4ECDC4;
-        color: #4ECDC4;
-        transform: none;
-        box-shadow: none;
-    }
-    .example-chips .stButton > button:active {
-        transform: none;
-    }
 
     /* Selectbox styling */
     .stSelectbox > div > div {
@@ -441,12 +366,11 @@ def inject_css():
 # ---------------------------------------------------------------------------
 # API call
 # ---------------------------------------------------------------------------
-def generate_comparisons(phenomenon: str, value: str, mode: str, region: str) -> list[dict]:
+def generate_comparisons(query: str, mode: str, region: str) -> list[dict]:
     """Call Claude to generate 4 perspective comparisons."""
     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-    user_prompt = f"""Phenomenon: "{phenomenon}"
-Value: {value}
+    user_prompt = f"""Input: {query}
 Mode: {mode}
 Region: {region}
 
@@ -488,18 +412,6 @@ def render_header():
     )
 
 
-def render_example_chips():
-    """Render clickable example chips."""
-    cols = st.columns(3)
-    for idx, ex in enumerate(EXAMPLES):
-        col = cols[idx % 3]
-        with col:
-            if st.button(ex["label"], key=f"ex_{idx}", use_container_width=True):
-                st.session_state["input_phenomenon"] = ex["phenomenon"]
-                st.session_state["input_value"] = ex["value"]
-                st.rerun()
-
-
 def render_result_card(comparison: dict):
     """Render a single comparison card."""
     cat = comparison.get("category", "size")
@@ -519,12 +431,12 @@ def render_result_card(comparison: dict):
     )
 
 
-def render_reference_bar(phenomenon: str, value: str):
+def render_reference_bar(query: str):
     st.markdown(
         f"""
         <div class="ref-bar">
             <span class="ref-label">Original</span>
-            <span>{phenomenon} &mdash; <strong>{value}</strong></span>
+            <span>{query}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -545,17 +457,16 @@ def main():
     inject_css()
     render_header()
 
-    # Input fields
-    phenomenon = st.text_input(
-        "What's the phenomenon?",
-        placeholder="e.g. Annual revenue of Saudi Aramco",
-        key="input_phenomenon",
+    # Input field
+    query = st.text_input(
+        "Describe a number",
+        placeholder="e.g. Saudi Aramco makes 535 billion USD in annual revenue",
+        key="input_query",
     )
-
-    value = st.text_input(
-        "The number",
-        placeholder="e.g. 535,000,000,000 USD or 77% of revenue",
-        key="input_value",
+    st.caption(
+        'Try: "India\'s population is 1.44 billion" · '
+        '"Saudi Aramco revenue is 535 billion USD" · '
+        '"Lightning strike odds are 1 in 1.2 million"'
     )
 
     # Mode & Region
@@ -576,22 +487,14 @@ def main():
             index=default_idx,
         )
 
-    # Example chips (below inputs)
-    st.markdown("##### Try an example")
-    st.markdown('<div class="example-chips">', unsafe_allow_html=True)
-    render_example_chips()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("")
-
     # Generate button (wrapped for scoped CSS)
     st.markdown('<div class="cta-wrapper">', unsafe_allow_html=True)
     cta_clicked = st.button("Make It Make Sense ✨")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if cta_clicked:
-        if not phenomenon.strip() or not value.strip():
-            st.warning("Please enter a phenomenon and a number.")
+        if not query.strip():
+            st.warning("Please describe a number to put in perspective.")
             return
 
         mode_label = "Fun" if "Fun" in mode else "Business"
@@ -600,16 +503,12 @@ def main():
         with st.spinner("Putting it in perspective..."):
             try:
                 comparisons = generate_comparisons(
-                    phenomenon.strip(),
-                    value.strip(),
+                    query.strip(),
                     mode_label,
                     region_label,
                 )
                 st.session_state["results"] = comparisons
-                st.session_state["result_meta"] = {
-                    "phenomenon": phenomenon.strip(),
-                    "value": value.strip(),
-                }
+                st.session_state["result_meta"] = {"query": query.strip()}
             except Exception as e:
                 st.error(f"Something went wrong: {e}")
                 st.button("Retry")
@@ -624,7 +523,7 @@ def main():
 
         meta = st.session_state.get("result_meta", {})
         if meta:
-            render_reference_bar(meta["phenomenon"], meta["value"])
+            render_reference_bar(meta["query"])
 
     render_footer()
 
